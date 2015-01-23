@@ -1,0 +1,5 @@
+Download the collection of photos here:
+http://snippets.khromov.se/stock-photo-archive-zip-77-images/
+
+Unzip to assets folder
+ex...  ./assets/photo1.jpg
