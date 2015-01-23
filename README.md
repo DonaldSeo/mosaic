@@ -1,2 +1,2 @@
 # mosaic
-Mosaic example in multiple languages
+Mosaic example in multiple languages (python, java, c, php)
