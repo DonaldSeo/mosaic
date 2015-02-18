@@ -7,16 +7,31 @@ import java.nio.file.Paths;
 import java.awt.image.*;
 import java.io.File;
 import java.util.ArrayList;
-import net.coobird.thumbnailator.*;
-import java.lang.Math.*;
+import java.lang.Math;
+import java.util.Iterator;
 
 class MyImages {
-		public BufferedImage input_img;
+		public BufferedImage input_img=null;
 		public int average_red;
 		public int average_green;
 		public int average_blue;
 
-		static String path = "C:\\Users\\Donald\\Desktop\\Mosaic";
+		static String path = "C:/Users/Donald/Desktop/Mosaic/image/";
+
+		public MyImages(BufferedImage img) {
+			input_img = img;
+		}
+		public MyImages(){
+			input_img = null;
+			average_red = 0;
+			average_green = 0;
+			average_blue = 0;
+		}
+		public void setImage(BufferedImage img){
+
+			this.input_img = img;
+
+		}
 
 	}
 
@@ -27,7 +42,7 @@ public class Mosaic extends JPanel {
 
 	static ArrayList<MyImages> photo_db = new ArrayList<MyImages>();
 	//change path
-	static String path = "C:\\Users\\Donald\\Desktop\\Mosaic";
+	static String path = "C:/Users/Donald/Desktop/Mosaic/image/";
 
 	static BufferedImage final_mosaic = null;
 
@@ -36,12 +51,19 @@ public class Mosaic extends JPanel {
 
 
 
-	public static void main (String [] args) {
+	public static void main (String [] args) throws Exception{
+		System.out.println("here 0");
+
 		Mosaic m = new Mosaic ();
-		m.File_path(path);
 		MyImages target_image = new MyImages();
-		target_image.input_img = ImageIO.read(new File(path, "target.png"));
-		m.create_mosaic(target_image, 40);
+		m.File_path(path);
+		try{
+			target_image.input_img = ImageIO.read(new File(path+"target.PNG"));
+		} catch (IOException e){
+			e.printStackTrace();
+		}
+		System.out.println("here 1");
+		m.create_mosaic(target_image, 10);
 		m.save_image();
 
 	}
@@ -54,10 +76,15 @@ public class Mosaic extends JPanel {
 			if(tempFile.isFile()) {
 				String tempPath = tempFile.getParent();
 				String tempFileName = tempFile.getName();
+				File imagefile = new File(tempPath+"/"+tempFileName);
 				try{
-					img.input_img = ImageIO.read(new File(tempPath + tempFileName));
+					BufferedImage input_reading_img = ImageIO.read(imagefile);
+					img.setImage(input_reading_img);
 				} catch (IOException e){
-
+					System.out.println("exception entered?");
+				}
+				if (img == null) {
+					System.out.println("null here");
 				}
 				average_color_rgb(img);
 				photo_db.add(img);
@@ -71,7 +98,11 @@ public class Mosaic extends JPanel {
 		}
 		else{
 			File f = new File("final_mosaic.jpg");
-			ImageIO.write(final_mosaic, "JPEG", f);
+			try{
+				ImageIO.write(final_mosaic, "JPEG", f);		
+			} catch (IOException e){
+
+			}
 		}
 	}
 
@@ -87,13 +118,15 @@ public class Mosaic extends JPanel {
 		int height = image.input_img.getHeight();
 
 		if ((width < min_size) || (height < min_size)){
+			System.out.println("min size now finally matched");
 			BufferedImage best_match = find_best_match(photo_db, image);
 			BufferedImage resized_best_match = resize_image(best_match, width, height);
 
 			return resized_best_match;
-		}
-		else {
-			divide_replace(image.input_img, photo_db, min_size);
+			
+		} else {
+			System.out.println("min size not matched");
+			return divide_replace(image.input_img, photo_db, min_size);
 		}
 
 	}
@@ -101,14 +134,24 @@ public class Mosaic extends JPanel {
 	public static BufferedImage find_best_match(ArrayList photo_db, MyImages image){
 		// find best match
 		double best_match_value = Double.POSITIVE_INFINITY;
-		BufferedImage best_match_image;
+
+		BufferedImage best_match_image = null;
 		average_color_rgb(image);
 
-		for (MyImages samples : photo_db){
+
+		@SuppressWarnings("unchecked")
+		Iterator<MyImages> i = photo_db.iterator();
+
+		while (i.hasNext()){
+			MyImages samples = i.next();
+
 			double comparison_result = image_comparison(samples, image);
 			if (comparison_result < best_match_value){
+
 				best_match_value = comparison_result;
+
 				best_match_image = samples.input_img;
+
 
 			}
 		}
@@ -125,8 +168,8 @@ public class Mosaic extends JPanel {
 		int pixel_width = image.input_img.getTileWidth();
 		int total_pixel = pixel_height * pixel_width;
 
-		for (int i=0; i < pixel_height; i++){
-			for (int j=0; j < pixel_width; j++){
+		for (int i=0; i < pixel_width; i++){
+			for (int j=0; j < pixel_height; j++){
 				Color image_color = new Color(image.input_img.getRGB(i, j));
 					total_red += image_color.getRed();
 					total_green += image_color.getGreen();
@@ -144,44 +187,66 @@ public class Mosaic extends JPanel {
 		double green_diff = image1.average_green - image2.average_green;
 		double blue_diff = image1.average_blue - image2.average_blue;
 
-		double distance_result = sqrt( (red_diff * red_diff)+(green_diff * green_diff)+ (blue_diff * blue_diff));
+		double distance_result = Math.sqrt( (red_diff * red_diff)+(green_diff * green_diff)+ (blue_diff * blue_diff));
 
 		return distance_result;
 	}
 
 	public static BufferedImage resize_image(BufferedImage image, int width, int height){
 
-		BufferedImage resized_image = Thumbnails.of(image).size(width, height).asBufferedImage();
+		BufferedImage resized_image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+
+		Graphics2D g = resized_image.createGraphics();
+		g.drawImage(image, 0, 0, width, height, null);
+		g.dispose();		
 
 		return resized_image;
 	}
 
-	public static MyImages divide_replace(BufferedImage image, ArrayList photo_db, int min_size){
+	public static BufferedImage divide_replace(BufferedImage image, ArrayList photo_db, int min_size){
 		int width = image.getTileWidth();
 		int height = image.getTileHeight();
 
+
+	
 		MyImages top_left_img = new MyImages();
 		MyImages top_right_img = new MyImages();
 		MyImages bottom_left_img = new MyImages();
-		MyImages bottom_right_img = new MyImages();
+		MyImages bottom_right_img = new MyImages(); 
+
+		BufferedImage top_left = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		BufferedImage top_right = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		BufferedImage bottom_left = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		BufferedImage right_left = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
 		top_left_img.input_img = image.getSubimage(0, 0, width/2, height/2);
-		top_right_img.input_img = image.getSubimage((width/2)+2, 0, width, height/2);
-		bottom_left_img.input_img = image.getSubimage(0, (height/2) + 2, width/2, height);
-		bottom_right_img.input_img = image.getSubimage((width/2)+2, (height/2) + 2, width, height);
+		top_right_img.input_img = image.getSubimage(width/2, 0, width/2, height/2);
+		bottom_left_img.input_img = image.getSubimage(0, height/2, width/2, height/2);
+		bottom_right_img.input_img = image.getSubimage(width/2, height/2, width/2, height/2);
+		System.out.println("image width is");
+		System.out.println(width);
+		System.out.println("image height is");
+		System.out.println(height);
+
+		System.out.println("top_left width is");
+		System.out.println(top_left_img.input_img.getTileWidth());
+		System.out.println("top_left height is");
+		System.out.println(top_left_img.input_img.getTileHeight());
+
+
 
 		MyImages new_image = new MyImages();
-		new_image.input_img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		new_image.input_img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
 		Graphics g = new_image.input_img.getGraphics();
 
 		g.drawImage(create_mosaic_helper(top_left_img, min_size, photo_db), 0, 0, null);
-		g.drawImage(create_mosaic_helper(top_right_img, min_size, photo_db), (width/2)+2, 0, null);
-		g.drawImage(create_mosaic_helper(bottom_left_img, min_size, photo_db), 0, (height/2)+2, null);
-		g.drawImage(create_mosaic_helper(bottom_right_img, min_size, photo_db),(width/2)+2, (height/2), null);
+		g.drawImage(create_mosaic_helper(top_right_img, min_size, photo_db), width/2, 0, null);
+		g.drawImage(create_mosaic_helper(bottom_left_img, min_size, photo_db), 0, height/2, null);
+		g.drawImage(create_mosaic_helper(bottom_right_img, min_size, photo_db),width/2, height/2, null);
 
 
-		return new_image;
+		return new_image.input_img;
 		
 	}
 
